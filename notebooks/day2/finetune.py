@@ -16,26 +16,39 @@ import os
 IMG_SIZE = 256
 
 def create_model():
-    """circle.py와 동일한 경량 모델 구조"""
+    """4층 CNN (16x16에서 Flatten)"""
     model = nn.Sequential(
+        # 1층: 256 -> 128
         nn.Conv2d(3, 16, kernel_size=3, padding=1),
+        nn.BatchNorm2d(16),
         nn.ReLU(),
         nn.MaxPool2d(2, 2),
         
+        # 2층: 128 -> 64
         nn.Conv2d(16, 32, kernel_size=3, padding=1),
+        nn.BatchNorm2d(32),
         nn.ReLU(),
         nn.MaxPool2d(2, 2),
         
+        # 3층: 64 -> 32
         nn.Conv2d(32, 64, kernel_size=3, padding=1),
+        nn.BatchNorm2d(64),
         nn.ReLU(),
         nn.MaxPool2d(2, 2),
         
-        nn.AdaptiveAvgPool2d(1),
+        # 4층: 32 -> 16
+        nn.Conv2d(64, 128, kernel_size=3, padding=1),
+        nn.BatchNorm2d(128),
+        nn.ReLU(),
+        nn.MaxPool2d(2, 2),
+        
+        # Flatten (16 * 16 * 128 = 32,768)
         nn.Flatten(),
         
-        nn.Linear(64, 32),
-        nn.ReLU(),
-        nn.Linear(32, 3)
+        # Regression Head
+        nn.Linear(128 * 16 * 16, 128),
+        nn.LeakyReLU(0.1),
+        nn.Linear(128, 3)
     )
     return model
 
@@ -118,7 +131,7 @@ class RealImageDataset(Dataset):
         return img_tensor, label_tensor
 
 
-def finetune(labels_file, pretrained_model_path, output_path, epochs=100, lr=0.0001):
+def finetune(labels_file, pretrained_model_path, output_path, epochs=20, lr=0.0001):
     """Fine-tuning 실행"""
     print("=== Fine-tuning 시작 ===\n")
     
@@ -126,14 +139,17 @@ def finetune(labels_file, pretrained_model_path, output_path, epochs=100, lr=0.0
     dataset = RealImageDataset(labels_file, augment=True)
     loader = DataLoader(dataset, batch_size=8, shuffle=True)
     
-    # 모델 로드
+    # 모델 로드 (finetuned 있으면 이어서, 없으면 pretrained에서 시작)
     model = create_model()
     
-    if os.path.exists(pretrained_model_path):
+    if os.path.exists(output_path):
+        model.load_state_dict(torch.load(output_path))
+        print(f"기존 Fine-tuned 모델 로드: {output_path} (이어서 학습)")
+    elif os.path.exists(pretrained_model_path):
         model.load_state_dict(torch.load(pretrained_model_path))
         print(f"사전학습 모델 로드: {pretrained_model_path}")
     else:
-        print("사전학습 모델 없음, 처음부터 학습")
+        print("모델 없음, 처음부터 학습")
     
     # Fine-tuning 설정 (낮은 학습률)
     criterion = nn.MSELoss()
@@ -181,12 +197,13 @@ if __name__ == "__main__":
     else:
         labels_file = "/Users/sjlee/Downloads/스캔슬라이드1/labels.json"
     
-    pretrained_model = "circle_model.pth"
-    output_model = "circle_model_finetuned.pth"
+    # 환경 변수 또는 기본값
+    pretrained_model = os.environ.get('BASE_MODEL', 'circle_model.pth')
+    output_model = os.environ.get('FINETUNED_MODEL', 'circle_model_finetuned.pth')
     
     if not os.path.exists(labels_file):
         print(f"라벨 파일이 없습니다: {labels_file}")
         print("먼저 labeling_tool.py로 라벨링을 해주세요:")
         print(f"  python notebooks/day2/labeling_tool.py")
     else:
-        finetune(labels_file, pretrained_model, output_model, epochs=100, lr=0.0001)
+        finetune(labels_file, pretrained_model, output_model, epochs=20, lr=0.0001)

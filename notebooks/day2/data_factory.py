@@ -15,8 +15,11 @@ class CircleDataset(Dataset):
         self.num_samples = num_samples
         self.images = []
         self.labels = []
-
-        for _ in range(num_samples):
+        
+        print(f"데이터 생성 중... ({num_samples}개)")
+        for i in range(num_samples):
+            if (i + 1) % 500 == 0:
+                print(f"  진행: {i + 1}/{num_samples}")
             # 1. 배경: 검은색~진한 회색 (더 다양하게)
             bg_brightness = np.random.uniform(0.0, 0.2)
             # 약간의 색조 변화
@@ -46,8 +49,8 @@ class CircleDataset(Dataset):
             # 5. 원 그리기 (뷰 필드 기본)
             cv2.circle(img, (x, y), r, (float(base_color[0]), float(base_color[1]), float(base_color[2])), -1)
             
-            # 6. 원 내부에 세포 같은 텍스처 추가
-            num_dots = np.random.randint(80, 200)
+            # 6. 원 내부에 세포 같은 텍스처 추가 (속도를 위해 줄임)
+            num_dots = np.random.randint(20, 50)
             for _ in range(num_dots):
                 angle = np.random.uniform(0, 2 * np.pi)
                 dist = np.random.uniform(0, r * 0.95)

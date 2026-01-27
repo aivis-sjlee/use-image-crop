@@ -8,31 +8,39 @@ import numpy as np
 import os
 
 def create_model():
-    """circle.py와 동일한 경량 모델 구조"""
+    """4층 CNN (16x16에서 Flatten)"""
     model = nn.Sequential(
         # 1층: 256 -> 128
         nn.Conv2d(3, 16, kernel_size=3, padding=1),
+        nn.BatchNorm2d(16),
         nn.ReLU(),
         nn.MaxPool2d(2, 2),
         
         # 2층: 128 -> 64
         nn.Conv2d(16, 32, kernel_size=3, padding=1),
+        nn.BatchNorm2d(32),
         nn.ReLU(),
         nn.MaxPool2d(2, 2),
         
         # 3층: 64 -> 32
         nn.Conv2d(32, 64, kernel_size=3, padding=1),
+        nn.BatchNorm2d(64),
         nn.ReLU(),
         nn.MaxPool2d(2, 2),
         
-        # Global Average Pooling
-        nn.AdaptiveAvgPool2d(1),
+        # 4층: 32 -> 16
+        nn.Conv2d(64, 128, kernel_size=3, padding=1),
+        nn.BatchNorm2d(128),
+        nn.ReLU(),
+        nn.MaxPool2d(2, 2),
+        
+        # Flatten (16 * 16 * 128 = 32,768)
         nn.Flatten(),
         
         # Regression Head
-        nn.Linear(64, 32),
-        nn.ReLU(),
-        nn.Linear(32, 3)
+        nn.Linear(128 * 16 * 16, 128),
+        nn.LeakyReLU(0.1),
+        nn.Linear(128, 3)
     )
     return model
 
@@ -210,14 +218,54 @@ class ImageTester:
 
 # 메인 실행 코드
 if __name__ == "__main__":
-    # 모델 로드
+    # 모델 선택
+    print("=== 모델 선택 ===")
+    
+    import glob
+    
+    # 스크립트 위치 기준으로 모델 찾기
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    models_available = []
+    
+    # 레거시 모델
+    legacy_base = os.path.join(script_dir, 'circle_model.pth')
+    legacy_ft = os.path.join(script_dir, 'circle_model_finetuned.pth')
+    if os.path.exists(legacy_base):
+        models_available.append((legacy_base, '기본 모델 (레거시)'))
+    if os.path.exists(legacy_ft):
+        models_available.append((legacy_ft, 'Fine-tuned (레거시)'))
+    
+    # 버전별 모델 찾기
+    for f in sorted(glob.glob(os.path.join(script_dir, 'circle_model_v*.pth'))):
+        version = os.path.basename(f).replace('circle_model_v', '').replace('.pth', '')
+        models_available.append((f, f'기본 모델 v{version}'))
+    
+    for f in sorted(glob.glob(os.path.join(script_dir, 'circle_model_finetuned_v*.pth'))):
+        version = os.path.basename(f).replace('circle_model_finetuned_v', '').replace('.pth', '')
+        models_available.append((f, f'Fine-tuned v{version}'))
+    
+    if not models_available:
+        print("사용 가능한 모델이 없습니다!")
+        exit(1)
+    
+    for i, (path, name) in enumerate(models_available, 1):
+        print(f"{i}. {name} ({path})")
+    print()
+    
+    model_choice = input(f"모델 선택 (1-{len(models_available)}): ").strip()
+    model_idx = int(model_choice) - 1 if model_choice.isdigit() else 0
+    model_idx = max(0, min(model_idx, len(models_available) - 1))
+    
+    model_path, model_name = models_available[model_idx]
+    
     model = create_model()
-    model.load_state_dict(torch.load('circle_model.pth'))
+    model.load_state_dict(torch.load(model_path))
     model.eval()
-    print("--- 모델 로드 완료! ---\n")
+    print(f"\n--- {model_name} 로드 완료! ({model_path}) ---\n")
     
     # 모드 선택
-    print("=== 모드 선택 ===")
+    print("=== 테스트 모드 선택 ===")
     print("1. 생성된 데이터셋으로 테스트 (정답 비교)")
     print("2. 실제 이미지 업로드 테스트 (병리 현미경 등)")
     print()
