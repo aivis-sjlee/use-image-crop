@@ -1,40 +1,47 @@
 import torch
 import torch.nn as nn
-from data_factory import CircleDataset
+from data_factory import CircleDataset, IMG_SIZE
 from torch.utils.data import DataLoader
 import torch.optim as optim
 
-# 데이터 1500개로 적당히 (빠르면서도 충분한 양)
-dataset = CircleDataset(num_samples=1500)
-loader = DataLoader(dataset, batch_size=32, shuffle=True)
+# 데이터 3000개 (정확도 향상)
+dataset = CircleDataset(num_samples=3000)
+loader = DataLoader(dataset, batch_size=64, shuffle=True)
 
-# [1] 모델 설계: CNN(특징 추출) + Linear(좌표 계산)
+# [1] 모델 설계: 경량 CNN + Global Average Pooling
 model = nn.Sequential(
-    # 특징 추출 (CNN Layer)
+    # 1층: 256 -> 128
     nn.Conv2d(3, 16, kernel_size=3, padding=1),
     nn.ReLU(),
-    nn.MaxPool2d(2, 2), # 128 -> 64
+    nn.MaxPool2d(2, 2),
     
+    # 2층: 128 -> 64
     nn.Conv2d(16, 32, kernel_size=3, padding=1),
     nn.ReLU(),
-    nn.MaxPool2d(2, 2), # 64 -> 32
+    nn.MaxPool2d(2, 2),
     
-    # 지능형 요약 (Flatten)
-    nn.Flatten(), 
-    
-    # 좌표 추출 (Regression Head)
-    # 32*32*32개의 단서를 받아서 최종 숫자 3개(x, y, r)를 뱉어라!
-    nn.Linear(32 * 32 * 32, 128), # 중간 요약층 하나 추가 (지능 업그레이드)
+    # 3층: 64 -> 32
+    nn.Conv2d(32, 64, kernel_size=3, padding=1),
     nn.ReLU(),
-    nn.Linear(128, 3) # 최종 출력: x, y, r
+    nn.MaxPool2d(2, 2),
+    
+    # Global Average Pooling (3층으로 충분)
+    nn.AdaptiveAvgPool2d(1),
+    nn.Flatten(),
+    
+    # Regression Head
+    nn.Linear(64, 32),
+    nn.ReLU(),
+    nn.Linear(32, 3)
 )
 
 criterion = nn.MSELoss() 
 optimizer = optim.Adam(model.parameters(), lr=0.001) # 학습률은 0.001이 국룰!
 
-epochs = 50
+epochs = 80
 print("--- 훈련 시작! ---")
-print(f"데이터셋: {len(dataset)}개")
+print(f"이미지 크기: {IMG_SIZE}x{IMG_SIZE}")
+print(f"데이터셋: {len(dataset)}개, 배치: 64")
 print(f"에포크: {epochs}회")
 print()
 
