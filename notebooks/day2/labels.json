@@ -1,0 +1,402 @@
+{
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_113818.jpg": {
+    "x": 4222,
+    "y": 3398,
+    "r": 2465,
+    "width": 8160,
+    "height": 6120,
+    "x_norm": 0.5174019607843138,
+    "y_norm": 0.5552287581699347,
+    "r_norm": 0.4027777777777778
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_113955.jpg": {
+    "x": 4291,
+    "y": 3059,
+    "r": 2502,
+    "width": 8160,
+    "height": 6120,
+    "x_norm": 0.5258578431372549,
+    "y_norm": 0.49983660130718954,
+    "r_norm": 0.4088235294117647
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_114037.jpg": {
+    "x": 4292,
+    "y": 2978,
+    "r": 2574,
+    "width": 8160,
+    "height": 6120,
+    "x_norm": 0.5259803921568628,
+    "y_norm": 0.4866013071895425,
+    "r_norm": 0.42058823529411765
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_114208.jpg": {
+    "x": 4275,
+    "y": 3112,
+    "r": 2667,
+    "width": 8160,
+    "height": 6120,
+    "x_norm": 0.5238970588235294,
+    "y_norm": 0.5084967320261438,
+    "r_norm": 0.4357843137254902
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_114341.jpg": {
+    "x": 4120,
+    "y": 3292,
+    "r": 2628,
+    "width": 8160,
+    "height": 6120,
+    "x_norm": 0.5049019607843137,
+    "y_norm": 0.5379084967320261,
+    "r_norm": 0.4294117647058823
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_114503.jpg": {
+    "x": 4316,
+    "y": 3055,
+    "r": 2690,
+    "width": 8160,
+    "height": 6120,
+    "x_norm": 0.528921568627451,
+    "y_norm": 0.4991830065359477,
+    "r_norm": 0.4395424836601307
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_114700.jpg": {
+    "x": 4312,
+    "y": 3235,
+    "r": 2451,
+    "width": 8160,
+    "height": 6120,
+    "x_norm": 0.5284313725490196,
+    "y_norm": 0.5285947712418301,
+    "r_norm": 0.4004901960784314
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_114836.jpg": {
+    "x": 4206,
+    "y": 3345,
+    "r": 2484,
+    "width": 8160,
+    "height": 6120,
+    "x_norm": 0.5154411764705882,
+    "y_norm": 0.5465686274509803,
+    "r_norm": 0.40588235294117647
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_115004.jpg": {
+    "x": 2102,
+    "y": 1578,
+    "r": 1223,
+    "width": 4000,
+    "height": 3000,
+    "x_norm": 0.5255,
+    "y_norm": 0.526,
+    "r_norm": 0.4076666666666667
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_115051.jpg": {
+    "x": 2104,
+    "y": 1476,
+    "r": 1294,
+    "width": 4000,
+    "height": 3000,
+    "x_norm": 0.526,
+    "y_norm": 0.492,
+    "r_norm": 0.43133333333333335
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_115308.jpg": {
+    "x": 2066,
+    "y": 1572,
+    "r": 1276,
+    "width": 4000,
+    "height": 3000,
+    "x_norm": 0.5165,
+    "y_norm": 0.524,
+    "r_norm": 0.42533333333333334
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_115432.jpg": {
+    "x": 1996,
+    "y": 1568,
+    "r": 1312,
+    "width": 4000,
+    "height": 3000,
+    "x_norm": 0.499,
+    "y_norm": 0.5226666666666666,
+    "r_norm": 0.43733333333333335
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_115535.jpg": {
+    "x": 2078,
+    "y": 1616,
+    "r": 1288,
+    "width": 4000,
+    "height": 3000,
+    "x_norm": 0.5195,
+    "y_norm": 0.5386666666666666,
+    "r_norm": 0.42933333333333334
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_115628.jpg": {
+    "x": 2026,
+    "y": 1536,
+    "r": 1278,
+    "width": 4000,
+    "height": 3000,
+    "x_norm": 0.5065,
+    "y_norm": 0.512,
+    "r_norm": 0.426
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_115730.jpg": {
+    "x": 2086,
+    "y": 1466,
+    "r": 1302,
+    "width": 4000,
+    "height": 3000,
+    "x_norm": 0.5215,
+    "y_norm": 0.4886666666666667,
+    "r_norm": 0.434
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_115908.jpg": {
+    "x": 2100,
+    "y": 1642,
+    "r": 1298,
+    "width": 4000,
+    "height": 3000,
+    "x_norm": 0.525,
+    "y_norm": 0.5473333333333333,
+    "r_norm": 0.43266666666666664
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_120112.jpg": {
+    "x": 4079,
+    "y": 3177,
+    "r": 2600,
+    "width": 8160,
+    "height": 6120,
+    "x_norm": 0.49987745098039216,
+    "y_norm": 0.5191176470588236,
+    "r_norm": 0.42483660130718953
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_120302.jpg": {
+    "x": 4161,
+    "y": 3149,
+    "r": 2610,
+    "width": 8160,
+    "height": 6120,
+    "x_norm": 0.5099264705882353,
+    "y_norm": 0.5145424836601307,
+    "r_norm": 0.4264705882352941
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_120424.jpg": {
+    "x": 3953,
+    "y": 3263,
+    "r": 2570,
+    "width": 8160,
+    "height": 6120,
+    "x_norm": 0.4844362745098039,
+    "y_norm": 0.5331699346405229,
+    "r_norm": 0.4199346405228758
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/20241220_120644.jpg": {
+    "x": 3741,
+    "y": 2970,
+    "r": 2605,
+    "width": 8160,
+    "height": 6120,
+    "x_norm": 0.45845588235294116,
+    "y_norm": 0.4852941176470588,
+    "r_norm": 0.4256535947712418
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_1.jpg": {
+    "x": 1540,
+    "y": 2235,
+    "r": 1405,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.5092592592592593,
+    "y_norm": 0.5543154761904762,
+    "r_norm": 0.4646164021164021
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_10.jpg": {
+    "x": 1541,
+    "y": 2326,
+    "r": 1444,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.5095899470899471,
+    "y_norm": 0.5768849206349206,
+    "r_norm": 0.4775132275132275
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_11.jpg": {
+    "x": 1487,
+    "y": 2451,
+    "r": 1468,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.49173280423280424,
+    "y_norm": 0.6078869047619048,
+    "r_norm": 0.48544973544973546
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_12.jpg": {
+    "x": 1503,
+    "y": 2459,
+    "r": 1439,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.49702380952380953,
+    "y_norm": 0.6098710317460317,
+    "r_norm": 0.47585978835978837
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_13.jpg": {
+    "x": 1499,
+    "y": 2277,
+    "r": 1444,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.4957010582010582,
+    "y_norm": 0.5647321428571429,
+    "r_norm": 0.4775132275132275
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_14.jpg": {
+    "x": 1534,
+    "y": 2249,
+    "r": 1419,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.5072751322751323,
+    "y_norm": 0.5577876984126984,
+    "r_norm": 0.46924603174603174
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_15.jpg": {
+    "x": 1519,
+    "y": 2320,
+    "r": 1426,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.5023148148148148,
+    "y_norm": 0.5753968253968254,
+    "r_norm": 0.47156084656084657
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_16.jpg": {
+    "x": 1584,
+    "y": 2310,
+    "r": 1421,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.5238095238095238,
+    "y_norm": 0.5729166666666666,
+    "r_norm": 0.4699074074074074
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_17.jpg": {
+    "x": 1530,
+    "y": 2314,
+    "r": 1419,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.5059523809523809,
+    "y_norm": 0.5739087301587301,
+    "r_norm": 0.46924603174603174
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_18.jpg": {
+    "x": 1493,
+    "y": 2350,
+    "r": 1416,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.4937169312169312,
+    "y_norm": 0.5828373015873016,
+    "r_norm": 0.46825396825396826
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_19.jpg": {
+    "x": 1543,
+    "y": 2428,
+    "r": 1431,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.5102513227513228,
+    "y_norm": 0.6021825396825397,
+    "r_norm": 0.4732142857142857
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_2.jpg": {
+    "x": 1551,
+    "y": 2255,
+    "r": 1385,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.5128968253968254,
+    "y_norm": 0.5592757936507936,
+    "r_norm": 0.4580026455026455
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_20.jpg": {
+    "x": 1563,
+    "y": 2356,
+    "r": 1418,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.5168650793650794,
+    "y_norm": 0.5843253968253969,
+    "r_norm": 0.4689153439153439
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_3.jpg": {
+    "x": 1485,
+    "y": 2332,
+    "r": 1423,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.49107142857142855,
+    "y_norm": 0.5783730158730159,
+    "r_norm": 0.4705687830687831
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_4.jpg": {
+    "x": 1517,
+    "y": 2388,
+    "r": 1430,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.5016534391534392,
+    "y_norm": 0.5922619047619048,
+    "r_norm": 0.4728835978835979
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_5.jpg": {
+    "x": 1557,
+    "y": 2237,
+    "r": 1440,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.5148809523809523,
+    "y_norm": 0.5548115079365079,
+    "r_norm": 0.47619047619047616
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_6.jpg": {
+    "x": 1473,
+    "y": 2426,
+    "r": 1446,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.4871031746031746,
+    "y_norm": 0.6016865079365079,
+    "r_norm": 0.4781746031746032
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_7.jpg": {
+    "x": 1578,
+    "y": 2274,
+    "r": 1397,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.5218253968253969,
+    "y_norm": 0.5639880952380952,
+    "r_norm": 0.4619708994708995
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_8.jpg": {
+    "x": 1533,
+    "y": 2404,
+    "r": 1425,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.5069444444444444,
+    "y_norm": 0.5962301587301587,
+    "r_norm": 0.4712301587301587
+  },
+  "/Users/sjlee/Downloads/\uc2a4\uce94\uc2ac\ub77c\uc774\ub4dc1/case1_9.jpg": {
+    "x": 1493,
+    "y": 2443,
+    "r": 1429,
+    "width": 3024,
+    "height": 4032,
+    "x_norm": 0.4937169312169312,
+    "y_norm": 0.6059027777777778,
+    "r_norm": 0.47255291005291006
+  }
+}

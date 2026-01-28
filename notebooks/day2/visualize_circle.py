@@ -1,301 +1,219 @@
-import torch
-import torch.nn as nn
-from data_factory import CircleDataset, IMG_SIZE
-import matplotlib.pyplot as plt
-from matplotlib.widgets import Button, TextBox
+"""
+원형 검출 결과 시각화 모듈
+
+사용법:
+    # 합성 데이터 테스트
+    python visualize_circle.py --mode synthetic --index 0
+    
+    # 실제 이미지 테스트
+    python visualize_circle.py --mode image --image /path/to/image.jpg
+    
+    # labels.json 전체 검증
+    python visualize_circle.py --mode validate --labels labels.json
+"""
+
+import argparse
+import json
+import os
 import cv2
 import numpy as np
-import os
+import matplotlib.pyplot as plt
+import torch
+from circle import CircleRegressor, get_device
+from data_factory import (
+    SyntheticCircleDataset,
+    preprocess_image,
+    resize_with_padding,
+    denormalize_from_square,
+    normalize_label_to_square,
+    IMG_SIZE,
+)
 
-def create_model():
-    """4층 CNN (16x16에서 Flatten)"""
-    model = nn.Sequential(
-        # 1층: 256 -> 128
-        nn.Conv2d(3, 16, kernel_size=3, padding=1),
-        nn.BatchNorm2d(16),
-        nn.ReLU(),
-        nn.MaxPool2d(2, 2),
-        
-        # 2층: 128 -> 64
-        nn.Conv2d(16, 32, kernel_size=3, padding=1),
-        nn.BatchNorm2d(32),
-        nn.ReLU(),
-        nn.MaxPool2d(2, 2),
-        
-        # 3층: 64 -> 32
-        nn.Conv2d(32, 64, kernel_size=3, padding=1),
-        nn.BatchNorm2d(64),
-        nn.ReLU(),
-        nn.MaxPool2d(2, 2),
-        
-        # 4층: 32 -> 16
-        nn.Conv2d(64, 128, kernel_size=3, padding=1),
-        nn.BatchNorm2d(128),
-        nn.ReLU(),
-        nn.MaxPool2d(2, 2),
-        
-        # Flatten (16 * 16 * 128 = 32,768)
-        nn.Flatten(),
-        
-        # Regression Head
-        nn.Linear(128 * 16 * 16, 128),
-        nn.LeakyReLU(0.1),
-        nn.Linear(128, 3)
-    )
+
+def _load_model(model_path):
+    """모델 로드"""
+    device = get_device()
+    model = CircleRegressor().to(device)
+    model.load_state_dict(torch.load(model_path, map_location=device, weights_only=True))
+    model.eval()
     return model
 
-class CircleVisualizer:
-    """인터랙티브 원 예측 시각화 도구"""
-    def __init__(self, dataset, model):
-        self.dataset = dataset
-        self.model = model
-        self.current_index = 0
-        self.max_index = len(dataset) - 1
-        
-        # Figure와 Axes 설정
-        self.fig, self.ax = plt.subplots(figsize=(8, 9))
-        plt.subplots_adjust(bottom=0.15)
-        
-        # 버튼 위치 설정
-        ax_prev = plt.axes([0.2, 0.05, 0.1, 0.05])
-        ax_next = plt.axes([0.7, 0.05, 0.1, 0.05])
-        ax_first = plt.axes([0.05, 0.05, 0.1, 0.05])
-        ax_last = plt.axes([0.85, 0.05, 0.1, 0.05])
-        
-        # 버튼 생성
-        self.btn_first = Button(ax_first, '<<')
-        self.btn_prev = Button(ax_prev, '<')
-        self.btn_next = Button(ax_next, '>')
-        self.btn_last = Button(ax_last, '>>')
-        
-        # 버튼 이벤트 연결
-        self.btn_first.on_clicked(self.goto_first)
-        self.btn_prev.on_clicked(self.goto_prev)
-        self.btn_next.on_clicked(self.goto_next)
-        self.btn_last.on_clicked(self.goto_last)
-        
-        # 초기 이미지 표시
-        self.update_image()
-        
-    def update_image(self):
-        """현재 인덱스의 이미지 업데이트"""
-        self.ax.clear()
-        
-        # 1. 데이터 추출
-        img_tensor, label = self.dataset[self.current_index]
-        
-        # 2. 모델 예측
-        self.model.eval()
-        with torch.no_grad():
-            prediction = self.model(img_tensor.unsqueeze(0))
-            prediction = prediction.squeeze().numpy()
-        
-        # 3. 텐서를 이미지로 변환
-        display_img = img_tensor.permute(1, 2, 0).numpy()
-        display_img = (display_img * 255).astype(np.uint8).copy()
-        
-        # 4. 정규화된 값 복원 (0~1 -> 0~IMG_SIZE)
-        true_x, true_y, true_r = (label * IMG_SIZE).numpy().astype(int)
-        pred_x, pred_y, pred_r = (prediction * IMG_SIZE).astype(int)
-        
-        # 5. 오차 계산
-        error_x = abs(true_x - pred_x)
-        error_y = abs(true_y - pred_y)
-        error_r = abs(true_r - pred_r)
-        
-        # 6. 원 그리기
-        cv2.circle(display_img, (true_x, true_y), true_r, (0, 255, 0), 2)
-        cv2.circle(display_img, (pred_x, pred_y), pred_r, (255, 0, 0), 2)
-        
-        # 7. 이미지 표시
-        self.ax.imshow(display_img)
-        self.ax.axis('off')
-        
-        # 8. 제목 및 정보 표시
-        title = f"Index: {self.current_index}/{self.max_index}\n\n"
-        title += f"정답 (초록): x={true_x}, y={true_y}, r={true_r}\n"
-        title += f"예측 (빨강): x={pred_x}, y={pred_y}, r={pred_r}\n"
-        title += f"오차: Δx={error_x}, Δy={error_y}, Δr={error_r}"
-        
-        self.ax.set_title(title, fontsize=11, pad=10)
-        
-        self.fig.canvas.draw()
-    
-    def goto_first(self, event):
-        """첫 번째 이미지로 이동"""
-        self.current_index = 0
-        self.update_image()
-    
-    def goto_prev(self, event):
-        """이전 이미지로 이동"""
-        if self.current_index > 0:
-            self.current_index -= 1
-            self.update_image()
-    
-    def goto_next(self, event):
-        """다음 이미지로 이동"""
-        if self.current_index < self.max_index:
-            self.current_index += 1
-            self.update_image()
-    
-    def goto_last(self, event):
-        """마지막 이미지로 이동"""
-        self.current_index = self.max_index
-        self.update_image()
-    
-    def show(self):
-        """GUI 표시"""
-        plt.show()
+
+def _predict_on_tensor(model, img_tensor):
+    """텐서 입력으로 예측"""
+    device = get_device()
+    with torch.no_grad():
+        pred = model(img_tensor.unsqueeze(0).to(device)).squeeze(0).cpu().numpy()
+    return pred
 
 
-class ImageTester:
-    """실제 이미지 테스트 도구 (터미널에서 경로 입력)"""
-    def __init__(self, model, image_path):
-        self.model = model
-        self.image_path = image_path
+def visualize_synthetic(model_path, index):
+    """합성 데이터 시각화"""
+    model = _load_model(model_path)
+    dataset = SyntheticCircleDataset(num_samples=max(index + 1, 20))
+    img_tensor, label = dataset[index]
+    pred = _predict_on_tensor(model, img_tensor)
+    
+    img = img_tensor[:3].permute(1, 2, 0).numpy()
+    img = (img * 255).astype(np.uint8).copy()
+    
+    true_x, true_y, true_r = (label.numpy() * IMG_SIZE).astype(int)
+    pred_x, pred_y, pred_r = (pred * IMG_SIZE).astype(int)
+    
+    cv2.circle(img, (true_x, true_y), true_r, (0, 255, 0), 2)
+    cv2.circle(img, (pred_x, pred_y), pred_r, (255, 0, 0), 2)
+    
+    plt.figure(figsize=(6, 6))
+    plt.imshow(img)
+    plt.axis("off")
+    plt.title(f"GT(초록) x={true_x}, y={true_y}, r={true_r}\nPred(빨강) x={pred_x}, y={pred_y}, r={pred_r}")
+    plt.tight_layout()
+    plt.show()
+
+
+def visualize_image(model_path, image_path, gt_label=None):
+    """실제 이미지 시각화"""
+    model = _load_model(model_path)
+    img = cv2.imread(image_path)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    h, w = img.shape[:2]
+    
+    img_resized, meta = resize_with_padding(img, IMG_SIZE)
+    img_tensor = torch.tensor(preprocess_image(img_resized))
+    pred = _predict_on_tensor(model, img_tensor)
+    
+    pred_x, pred_y, pred_r = denormalize_from_square(pred, meta, IMG_SIZE)
+    
+    display = img.copy()
+    
+    # GT가 있으면 표시
+    if gt_label:
+        gt_x = int(gt_label[0] * w)
+        gt_y = int(gt_label[1] * h)
+        gt_r = int(gt_label[2] * min(w, h))
+        cv2.circle(display, (gt_x, gt_y), gt_r, (0, 255, 0), 3)
+        cv2.circle(display, (gt_x, gt_y), 5, (0, 255, 0), -1)
+    
+    # 예측 표시
+    cv2.circle(display, (pred_x, pred_y), pred_r, (255, 0, 0), 3)
+    cv2.circle(display, (pred_x, pred_y), 5, (255, 0, 0), -1)
+    
+    plt.figure(figsize=(10, 10))
+    plt.imshow(display)
+    plt.axis("off")
+    title = f"{os.path.basename(image_path)}\nPred: x={pred_x}, y={pred_y}, r={pred_r}"
+    if gt_label:
+        title += f"\nGT: x={gt_x}, y={gt_y}, r={gt_r}"
+    plt.title(title)
+    plt.tight_layout()
+    plt.show()
+
+
+def validate_labels(model_path, labels_file, show_worst=5):
+    """labels.json 전체 검증"""
+    model = _load_model(model_path)
+    
+    with open(labels_file, "r") as f:
+        labels = json.load(f)
+    
+    errors = []
+    
+    for img_path, info in labels.items():
+        if not os.path.exists(img_path):
+            print(f"Skip (not found): {img_path}")
+            continue
         
-    def run(self):
-        """이미지 로드 및 예측 실행"""
-        # 이미지 로드
-        img = cv2.imread(self.image_path)
-        if img is None:
-            print(f"이미지 로드 실패: {self.image_path}")
-            return
-        
+        img = cv2.imread(img_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        original_size = img.shape[:2]  # (H, W)
+        h, w = img.shape[:2]
         
-        print(f"이미지 로드 완료: {self.image_path}")
-        print(f"원본 크기: {original_size[1]} x {original_size[0]}")
+        img_resized, meta = resize_with_padding(img, IMG_SIZE)
+        img_tensor = torch.tensor(preprocess_image(img_resized))
+        pred = _predict_on_tensor(model, img_tensor)
         
-        # 모델 입력용: IMG_SIZExIMG_SIZE로 리사이즈 + 정규화
-        img_resized = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
-        img_normalized = img_resized.astype(np.float32) / 255.0
-        img_tensor = torch.tensor(img_normalized.transpose(2, 0, 1))
+        # GT 좌표
+        if "x_norm" in info:
+            gt_x_norm, gt_y_norm, gt_r_norm = info["x_norm"], info["y_norm"], info["r_norm"]
+        else:
+            gt_x_norm = info["x"] / info["width"]
+            gt_y_norm = info["y"] / info["height"]
+            gt_r_norm = info["r"] / min(info["width"], info["height"])
         
-        # 모델 예측
-        self.model.eval()
-        with torch.no_grad():
-            prediction = self.model(img_tensor.unsqueeze(0))
-            prediction = prediction.squeeze().numpy()
+        # 정사각형 좌표로 변환
+        gt_x_sq, gt_y_sq, gt_r_sq = normalize_label_to_square(gt_x_norm, gt_y_norm, gt_r_norm, meta, IMG_SIZE)
         
-        print(f"모델 예측값 (정규화): {prediction}")
+        # 에러 계산
+        xy_error = np.sqrt((pred[0] - gt_x_sq) ** 2 + (pred[1] - gt_y_sq) ** 2)
+        r_error = abs(pred[2] - gt_r_sq)
+        total_error = xy_error + r_error * 2  # 반지름 에러에 가중치
         
-        # 예측값 복원 (0~1 -> 실제 픽셀 좌표)
-        pred_x_scaled = int(prediction[0] * IMG_SIZE)
-        pred_y_scaled = int(prediction[1] * IMG_SIZE)
-        pred_r_scaled = int(prediction[2] * IMG_SIZE)
+        errors.append({
+            "path": img_path,
+            "pred": pred,
+            "gt": [gt_x_sq, gt_y_sq, gt_r_sq],
+            "xy_error": xy_error,
+            "r_error": r_error,
+            "total_error": total_error,
+        })
+    
+    # 통계
+    xy_errors = [e["xy_error"] for e in errors]
+    r_errors = [e["r_error"] for e in errors]
+    
+    print(f"\n=== 검증 결과 ({len(errors)}개 이미지) ===")
+    print(f"XY Error: mean={np.mean(xy_errors):.4f}, std={np.std(xy_errors):.4f}")
+    print(f"R Error: mean={np.mean(r_errors):.4f}, std={np.std(r_errors):.4f}")
+    
+    # 최악의 케이스 시각화
+    errors.sort(key=lambda x: x["total_error"], reverse=True)
+    print(f"\n최악의 {show_worst}개 케이스:")
+    for i, e in enumerate(errors[:show_worst]):
+        print(f"  {i+1}. {os.path.basename(e['path'])}: XY={e['xy_error']:.4f}, R={e['r_error']:.4f}")
+    
+    # 최악의 케이스 시각화
+    if show_worst > 0:
+        fig, axes = plt.subplots(1, min(show_worst, len(errors)), figsize=(5 * min(show_worst, len(errors)), 5))
+        if show_worst == 1:
+            axes = [axes]
         
-        # 원본 이미지 크기로 스케일 변환
-        scale_x = original_size[1] / IMG_SIZE
-        scale_y = original_size[0] / IMG_SIZE
-        scale_r = min(scale_x, scale_y)
+        for ax, e in zip(axes, errors[:show_worst]):
+            img = cv2.imread(e["path"])
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img_resized, meta = resize_with_padding(img, IMG_SIZE)
+            
+            gt = e["gt"]
+            pred = e["pred"]
+            
+            display = img_resized.copy()
+            gt_x, gt_y, gt_r = int(gt[0] * IMG_SIZE), int(gt[1] * IMG_SIZE), int(gt[2] * IMG_SIZE)
+            pred_x, pred_y, pred_r = int(pred[0] * IMG_SIZE), int(pred[1] * IMG_SIZE), int(pred[2] * IMG_SIZE)
+            
+            cv2.circle(display, (gt_x, gt_y), gt_r, (0, 255, 0), 2)
+            cv2.circle(display, (pred_x, pred_y), pred_r, (255, 0, 0), 2)
+            
+            ax.imshow(display)
+            ax.axis("off")
+            ax.set_title(f"R_err: {e['r_error']:.3f}")
         
-        pred_x = int(pred_x_scaled * scale_x)
-        pred_y = int(pred_y_scaled * scale_y)
-        pred_r = int(pred_r_scaled * scale_r)
-        
-        print(f"예측 원 (빨강): x={pred_x}, y={pred_y}, r={pred_r}")
-        
-        # 원본 이미지에 예측 원 그리기 (빨간색)
-        display_img = img.copy()
-        cv2.circle(display_img, (pred_x, pred_y), pred_r, (255, 0, 0), 3)
-        cv2.circle(display_img, (pred_x, pred_y), 5, (255, 0, 0), -1)
-        
-        # 화면 표시
-        fig, ax = plt.subplots(figsize=(10, 10))
-        ax.imshow(display_img)
-        ax.axis('off')
-        
-        title = f"Image: {os.path.basename(self.image_path)}\n"
-        title += f"Size: {original_size[1]} x {original_size[0]}\n\n"
-        title += f"Predicted Circle (Red): x={pred_x}, y={pred_y}, r={pred_r}"
-        
-        ax.set_title(title, fontsize=12, pad=10)
         plt.tight_layout()
         plt.show()
 
 
-# 메인 실행 코드
 if __name__ == "__main__":
-    # 모델 선택
-    print("=== 모델 선택 ===")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", default="circle_model_finetuned_best.pth")
+    parser.add_argument("--mode", choices=["synthetic", "image", "validate"], default="image")
+    parser.add_argument("--index", type=int, default=0)
+    parser.add_argument("--image", default="")
+    parser.add_argument("--labels", default="labels.json")
+    parser.add_argument("--show-worst", type=int, default=5)
+    args = parser.parse_args()
     
-    import glob
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
     
-    # 스크립트 위치 기준으로 모델 찾기
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    models_available = []
-    
-    # 레거시 모델
-    legacy_base = os.path.join(script_dir, 'circle_model.pth')
-    legacy_ft = os.path.join(script_dir, 'circle_model_finetuned.pth')
-    if os.path.exists(legacy_base):
-        models_available.append((legacy_base, '기본 모델 (레거시)'))
-    if os.path.exists(legacy_ft):
-        models_available.append((legacy_ft, 'Fine-tuned (레거시)'))
-    
-    # 버전별 모델 찾기
-    for f in sorted(glob.glob(os.path.join(script_dir, 'circle_model_v*.pth'))):
-        version = os.path.basename(f).replace('circle_model_v', '').replace('.pth', '')
-        models_available.append((f, f'기본 모델 v{version}'))
-    
-    for f in sorted(glob.glob(os.path.join(script_dir, 'circle_model_finetuned_v*.pth'))):
-        version = os.path.basename(f).replace('circle_model_finetuned_v', '').replace('.pth', '')
-        models_available.append((f, f'Fine-tuned v{version}'))
-    
-    if not models_available:
-        print("사용 가능한 모델이 없습니다!")
-        exit(1)
-    
-    for i, (path, name) in enumerate(models_available, 1):
-        print(f"{i}. {name} ({path})")
-    print()
-    
-    model_choice = input(f"모델 선택 (1-{len(models_available)}): ").strip()
-    model_idx = int(model_choice) - 1 if model_choice.isdigit() else 0
-    model_idx = max(0, min(model_idx, len(models_available) - 1))
-    
-    model_path, model_name = models_available[model_idx]
-    
-    model = create_model()
-    model.load_state_dict(torch.load(model_path))
-    model.eval()
-    print(f"\n--- {model_name} 로드 완료! ({model_path}) ---\n")
-    
-    # 모드 선택
-    print("=== 테스트 모드 선택 ===")
-    print("1. 생성된 데이터셋으로 테스트 (정답 비교)")
-    print("2. 실제 이미지 업로드 테스트 (병리 현미경 등)")
-    print()
-    
-    mode = input("모드 선택 (1 or 2): ").strip()
-    
-    if mode == "2":
-        # 이미지 테스트 모드
-        print("\n--- 이미지 테스트 모드 ---")
-        print("테스트할 이미지 경로를 입력하세요.")
-        print("(Finder에서 파일을 터미널로 드래그하면 경로가 자동 입력됩니다)\n")
-        
-        image_path = input("이미지 경로: ").strip().strip("'\"")  # 따옴표 제거
-        
-        if not os.path.exists(image_path):
-            print(f"파일이 존재하지 않습니다: {image_path}")
-        else:
-            tester = ImageTester(model, image_path)
-            tester.run()
+    if args.mode == "synthetic":
+        visualize_synthetic(args.model, args.index)
+    elif args.mode == "validate":
+        validate_labels(args.model, args.labels, args.show_worst)
     else:
-        # 데이터셋 테스트 모드
-        dataset = CircleDataset(num_samples=100)
-        print(f"\n--- 데이터셋 테스트 모드 ---")
-        print(f"데이터셋 크기: {len(dataset)}개")
-        print("GUI 조작법:")
-        print("  << : 첫 번째 이미지")
-        print("  <  : 이전 이미지")
-        print("  >  : 다음 이미지")
-        print("  >> : 마지막 이미지")
-        print()
-        
-        visualizer = CircleVisualizer(dataset, model)
-        visualizer.show()
+        visualize_image(args.model, args.image)

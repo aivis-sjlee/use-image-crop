@@ -1,209 +1,166 @@
 """
-실제 이미지로 Fine-tuning
-- 라벨링된 실제 현미경 이미지로 모델 미세조정
-- 기존 학습된 모델 가중치 로드 후 추가 학습
+실제 이미지 파인튜닝 모듈
+
+핵심 개선점:
+1. 실제 데이터 집중 학습 (95% 비율)
+2. 오버샘플링으로 데이터 부족 보완
+3. 긴 patience + warm restart
+4. 더 강력한 augmentation
 """
 
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-import cv2
-import numpy as np
-import json
+import argparse
 import os
-
-IMG_SIZE = 256
-
-def create_model():
-    """4층 CNN (16x16에서 Flatten)"""
-    model = nn.Sequential(
-        # 1층: 256 -> 128
-        nn.Conv2d(3, 16, kernel_size=3, padding=1),
-        nn.BatchNorm2d(16),
-        nn.ReLU(),
-        nn.MaxPool2d(2, 2),
-        
-        # 2층: 128 -> 64
-        nn.Conv2d(16, 32, kernel_size=3, padding=1),
-        nn.BatchNorm2d(32),
-        nn.ReLU(),
-        nn.MaxPool2d(2, 2),
-        
-        # 3층: 64 -> 32
-        nn.Conv2d(32, 64, kernel_size=3, padding=1),
-        nn.BatchNorm2d(64),
-        nn.ReLU(),
-        nn.MaxPool2d(2, 2),
-        
-        # 4층: 32 -> 16
-        nn.Conv2d(64, 128, kernel_size=3, padding=1),
-        nn.BatchNorm2d(128),
-        nn.ReLU(),
-        nn.MaxPool2d(2, 2),
-        
-        # Flatten (16 * 16 * 128 = 32,768)
-        nn.Flatten(),
-        
-        # Regression Head
-        nn.Linear(128 * 16 * 16, 128),
-        nn.LeakyReLU(0.1),
-        nn.Linear(128, 3)
-    )
-    return model
+import numpy as np
+import torch
+import torch.optim as optim
+from torch.utils.data import DataLoader, Subset
+from circle import CircleRegressor, circle_loss, get_device
+from data_factory import RealImageDataset, SyntheticCircleDataset, MixedDataset, IMG_SIZE
 
 
-class RealImageDataset(Dataset):
-    """라벨링된 실제 이미지 데이터셋 - 미리 로드"""
-    def __init__(self, labels_file, augment=True):
-        with open(labels_file, 'r') as f:
-            self.labels = json.load(f)
-        
-        self.image_paths = list(self.labels.keys())
-        self.augment = augment
-        
-        # 미리 모든 이미지 로드 및 전처리
-        print(f"이미지 로드 중... ({len(self.image_paths)}개)")
-        self.images = []
-        self.label_tensors = []
-        
-        for i, img_path in enumerate(self.image_paths):
-            print(f"  [{i+1}/{len(self.image_paths)}] {os.path.basename(img_path)}")
-            
-            label_data = self.labels[img_path]
-            
-            # 이미지 로드
-            img = cv2.imread(img_path)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            h, w = img.shape[:2]
-            
-            # 256x256로 리사이즈
-            img_resized = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
-            
-            # 좌표 스케일 변환
-            x = label_data['x']
-            y = label_data['y']
-            r = label_data['r']
-            
-            scale_x = IMG_SIZE / w
-            scale_y = IMG_SIZE / h
-            scale_r = min(scale_x, scale_y)
-            
-            x_scaled = x * scale_x
-            y_scaled = y * scale_y
-            r_scaled = r * scale_r
-            
-            # 정규화 (0~1)
-            img_normalized = img_resized.astype(np.float32) / 255.0
-            
-            self.images.append(img_normalized)
-            self.label_tensors.append([
-                x_scaled / IMG_SIZE,
-                y_scaled / IMG_SIZE,
-                r_scaled / IMG_SIZE
-            ])
-        
-        print(f"로드 완료!")
+def _split_indices(n, val_ratio=0.15, seed=42):
+    """Train/Val 분리 (실제 데이터가 적으므로 val 비율 낮춤)"""
+    rng = np.random.RandomState(seed)
+    indices = np.arange(n)
+    rng.shuffle(indices)
+    val_size = max(2, int(n * val_ratio))
+    return indices[val_size:], indices[:val_size]
+
+
+def _evaluate(model, loader, device):
+    """검증 손실 계산"""
+    model.eval()
+    total_loss = 0.0
+    total_r_error = 0.0
+    count = 0
+    with torch.no_grad():
+        for inputs, labels in loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = model(inputs)
+            total_loss += circle_loss(outputs, labels).item()
+            total_r_error += torch.abs(outputs[:, 2] - labels[:, 2]).sum().item()
+            count += inputs.size(0)
+    return total_loss / len(loader), total_r_error / count
+
+
+def finetune(labels_file, pretrained_model_path, output_path, epochs, lr, real_ratio, batch_size):
+    """실제 이미지 파인튜닝"""
+    device = get_device()
+    print(f"Device: {device}")
+    print(f"Labels: {labels_file}")
+    print(f"Pretrained: {pretrained_model_path}")
+    print(f"Output: {output_path}")
     
-    def __len__(self):
-        # Augmentation으로 데이터 증폭
-        return len(self.image_paths) * (10 if self.augment else 1)
+    # 데이터셋 준비
+    real_dataset = RealImageDataset(labels_file, augment=True)
+    train_idx, val_idx = _split_indices(len(real_dataset), val_ratio=0.15, seed=42)
+    real_train = Subset(real_dataset, train_idx)
+    real_val = Subset(RealImageDataset(labels_file, augment=False), val_idx)
     
-    def __getitem__(self, idx):
-        # 원본 인덱스
-        real_idx = idx % len(self.image_paths)
-        img = self.images[real_idx].copy()
-        label = self.label_tensors[real_idx].copy()
-        
-        # Augmentation
-        if self.augment and idx >= len(self.image_paths):
-            # 밝기 변화
-            brightness = np.random.uniform(0.7, 1.3)
-            img = np.clip(img * brightness, 0, 1)
-            
-            # 노이즈
-            noise = np.random.normal(0, 0.02, img.shape).astype(np.float32)
-            img = np.clip(img + noise, 0, 1)
-        
-        img_tensor = torch.tensor(img.transpose(2, 0, 1), dtype=torch.float32)
-        label_tensor = torch.tensor(label, dtype=torch.float32)
-        
-        return img_tensor, label_tensor
-
-
-def finetune(labels_file, pretrained_model_path, output_path, epochs=20, lr=0.0001):
-    """Fine-tuning 실행"""
-    print("=== Fine-tuning 시작 ===\n")
+    print(f"실제 데이터: {len(real_dataset)}개 (Train: {len(train_idx)}, Val: {len(val_idx)})")
     
-    # 데이터셋 로드
-    dataset = RealImageDataset(labels_file, augment=True)
-    loader = DataLoader(dataset, batch_size=8, shuffle=True)
-    
-    # 모델 로드 (finetuned 있으면 이어서, 없으면 pretrained에서 시작)
-    model = create_model()
-    
-    if os.path.exists(output_path):
-        model.load_state_dict(torch.load(output_path))
-        print(f"기존 Fine-tuned 모델 로드: {output_path} (이어서 학습)")
-    elif os.path.exists(pretrained_model_path):
-        model.load_state_dict(torch.load(pretrained_model_path))
-        print(f"사전학습 모델 로드: {pretrained_model_path}")
+    # Mixed Dataset (실제 데이터 오버샘플링)
+    if real_ratio < 1.0:
+        synthetic_dataset = SyntheticCircleDataset(num_samples=max(500, len(real_dataset)), domain_match=True)
+        train_dataset = MixedDataset(real_train, synthetic_dataset, real_ratio=real_ratio, oversample_real=6)
     else:
-        print("모델 없음, 처음부터 학습")
+        # 실제 데이터만 사용 시 강제 오버샘플링
+        train_dataset = MixedDataset(real_train, SyntheticCircleDataset(100), real_ratio=1.0, oversample_real=8)
     
-    # Fine-tuning 설정 (낮은 학습률)
-    criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    print(f"학습 데이터: {len(train_dataset)}개 (Real ratio: {real_ratio})")
     
-    print(f"\n이미지 크기: {IMG_SIZE}x{IMG_SIZE}")
-    print(f"원본 데이터: {len(dataset.image_paths)}개")
-    print(f"Augmentation 후: {len(dataset)}개")
-    print(f"에포크: {epochs}회")
-    print(f"학습률: {lr}")
-    print()
+    # DataLoader
+    num_workers = 0 if torch.backends.mps.is_available() else 2
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    val_loader = DataLoader(real_val, batch_size=batch_size, shuffle=False, num_workers=0)
+    
+    # 모델 로드
+    model = CircleRegressor().to(device)
+    
+    loaded_from = None
+    if os.path.exists(output_path):
+        model.load_state_dict(torch.load(output_path, map_location=device, weights_only=True))
+        loaded_from = output_path
+    elif os.path.exists(pretrained_model_path):
+        model.load_state_dict(torch.load(pretrained_model_path, map_location=device, weights_only=True))
+        loaded_from = pretrained_model_path
+    
+    if loaded_from:
+        print(f"모델 로드: {loaded_from}")
+    else:
+        print("새 모델 초기화")
+    
+    # Optimizer & Scheduler
+    optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=5e-4)
+    scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=20, T_mult=2)
     
     # 학습
-    print("\n학습 시작...")
+    best_val = float("inf")
+    best_r_error = float("inf")
+    patience = 15
+    wait = 0
+    
     for epoch in range(epochs):
-        running_loss = 0.0
-        for inputs, labels in loader:
+        model.train()
+        running = 0.0
+        for inputs, labels in train_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
             optimizer.zero_grad()
             outputs = model(inputs)
-            loss = criterion(outputs, labels)
+            loss = circle_loss(outputs, labels)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
-            running_loss += loss.item()
+            running += loss.item()
         
-        avg_loss = running_loss / len(loader)
+        train_loss = running / len(train_loader)
+        val_loss, r_error = _evaluate(model, val_loader, device)
+        scheduler.step()
         
-        # 매 에포크마다 진행 표시
-        if (epoch + 1) % 5 == 0:
-            print(f"Epoch [{epoch+1}/{epochs}], Loss: {avg_loss:.6f}")
+        # 로깅
+        if (epoch + 1) % 5 == 0 or epoch == 0:
+            print(f"Epoch [{epoch+1}/{epochs}] Train: {train_loss:.5f} Val: {val_loss:.5f} R_err: {r_error:.4f}")
+        
+        # Best 모델 저장 (반지름 에러 기준)
+        improved = False
+        if r_error < best_r_error:
+            best_r_error = r_error
+            improved = True
+        if val_loss < best_val:
+            best_val = val_loss
+            improved = True
+        
+        if improved:
+            wait = 0
+            torch.save(model.state_dict(), output_path)
+        else:
+            wait += 1
+            if wait >= patience:
+                print(f"Early stopping at epoch {epoch+1}")
+                break
     
-    # 저장
-    torch.save(model.state_dict(), output_path)
-    print(f"\n=== Fine-tuning 완료 ===")
-    print(f"모델 저장: {output_path}")
+    # 최종 모델 로드
+    model.load_state_dict(torch.load(output_path, map_location=device, weights_only=True))
     
-    return model
+    # 최종 검증
+    final_loss, final_r_error = _evaluate(model, val_loader, device)
+    print(f"\n=== 학습 완료 ===")
+    print(f"모델: {output_path}")
+    print(f"최종 Val Loss: {final_loss:.5f}")
+    print(f"최종 R Error: {final_r_error:.4f}")
+    print(f"이미지 크기: {IMG_SIZE}x{IMG_SIZE}")
 
 
 if __name__ == "__main__":
-    import sys
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--labels", default="labels.json")
+    parser.add_argument("--base", default="circle_model.pth")
+    parser.add_argument("--out", default="circle_model_finetuned_best.pth")
+    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--lr", type=float, default=3e-5)
+    parser.add_argument("--real-ratio", type=float, default=0.95)
+    parser.add_argument("--batch", type=int, default=16)
+    args = parser.parse_args()
     
-    # 경로 설정
-    if len(sys.argv) > 1:
-        labels_file = sys.argv[1]
-    else:
-        labels_file = "/Users/sjlee/Downloads/스캔슬라이드1/labels.json"
-    
-    # 환경 변수 또는 기본값
-    pretrained_model = os.environ.get('BASE_MODEL', 'circle_model.pth')
-    output_model = os.environ.get('FINETUNED_MODEL', 'circle_model_finetuned.pth')
-    
-    if not os.path.exists(labels_file):
-        print(f"라벨 파일이 없습니다: {labels_file}")
-        print("먼저 labeling_tool.py로 라벨링을 해주세요:")
-        print(f"  python notebooks/day2/labeling_tool.py")
-    else:
-        finetune(labels_file, pretrained_model, output_model, epochs=20, lr=0.0001)
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    finetune(args.labels, args.base, args.out, args.epochs, args.lr, args.real_ratio, args.batch)
